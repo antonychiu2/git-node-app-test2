@@ -107,11 +107,20 @@ app.post('/api/commit', async (req, res) => {
       });
     }
     
-    // Escape the commit message to prevent command injection
-    const escapedMessage = message.replace(/"/g, '\\"');
+    // Sanitize the commit message to prevent command injection
+    const sanitizedMessage = message.replace(/"/g, '\\"');
     
-    child_process.execFile('git', ["commit", "-m", escapedMessage], (error, stdout, stderr) => {
+    exec(`git commit -m "${sanitizedMessage}"`, (error, stdout, stderr) => {
       if (error) {
+        // Check if the error is due to no changes to commit
+        if (stderr.includes('nothing to commit') || error.message.includes('nothing to commit')) {
+          return res.status(400).json({
+            success: false,
+            error: 'No changes to commit',
+            details: stderr || error.message
+          });
+        }
+        
         return res.status(500).json({
           success: false,
           error: 'Failed to create commit',
