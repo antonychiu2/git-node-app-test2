@@ -100,7 +100,7 @@ app.post('/api/commit', async (req, res) => {
   try {
     const { message } = req.body;
     
-    if (!message || message.trim() === '') {
+    if (!message || typeof message !== 'string' || message.trim() === '') {
       return res.status(400).json({
         success: false,
         error: 'Commit message is required'
@@ -113,11 +113,11 @@ app.post('/api/commit', async (req, res) => {
     exec(`git commit -m "${sanitizedMessage}"`, (error, stdout, stderr) => {
       if (error) {
         // Check if the error is due to no changes to commit
-        if (stderr.includes('nothing to commit') || error.message.includes('nothing to commit')) {
+        if (stderr.includes('nothing to commit') || stderr.includes('no changes added')) {
           return res.status(400).json({
             success: false,
             error: 'No changes to commit',
-            details: stderr || error.message
+            details: stderr
           });
         }
         
