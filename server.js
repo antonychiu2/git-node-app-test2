@@ -112,15 +112,6 @@ app.post('/api/commit', async (req, res) => {
 
     execFile('git', ["commit", "-m", escapedMessage], (error, stdout, stderr) => {
       if (error) {
-        // Check if the error is due to no changes to commit
-        if (stderr.includes('nothing to commit') || error.message.includes('nothing to commit')) {
-          return res.status(400).json({
-            success: false,
-            error: 'Nothing to commit, working tree clean',
-            details: stderr || error.message
-          });
-        }
-
         return res.status(500).json({
           success: false,
           error: 'Failed to create commit',
@@ -131,8 +122,7 @@ app.post('/api/commit', async (req, res) => {
       res.json({
         success: true,
         message: 'Commit created successfully',
-        output: stdout,
-        commitMessage: message
+        output: stdout
       });
     });
   } catch (error) {
