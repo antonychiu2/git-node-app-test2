@@ -106,21 +106,11 @@ app.post('/api/commit', async (req, res) => {
         error: 'Commit message is required'
       });
     }
+
+    const { execFile } = require('child_process');
     
-    // Sanitize the commit message to prevent command injection
-    const sanitizedMessage = message.replace(/"/g, '\\"');
-    
-    exec(`git commit -m "${sanitizedMessage}"`, (error, stdout, stderr) => {
+    execFile('git', ['commit', '-m', message.trim()], (error, stdout, stderr) => {
       if (error) {
-        // Check if the error is due to no changes to commit
-        if (stderr.includes('nothing to commit') || stderr.includes('no changes added')) {
-          return res.status(400).json({
-            success: false,
-            error: 'No changes to commit',
-            details: stderr
-          });
-        }
-        
         return res.status(500).json({
           success: false,
           error: 'Failed to create commit',
