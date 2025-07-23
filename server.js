@@ -100,16 +100,17 @@ app.post('/api/commit', async (req, res) => {
   try {
     const { message } = req.body;
     
-    if (!message || typeof message !== 'string' || message.trim() === '') {
+    if (!message || message.trim() === '') {
       return res.status(400).json({
         success: false,
         error: 'Commit message is required'
       });
     }
-
-    const { execFile } = require('child_process');
     
-    execFile('git', ['commit', '-m', message.trim()], (error, stdout, stderr) => {
+    // Escape the commit message to prevent command injection
+    const escapedMessage = message.replace(/"/g, '\\"');
+    
+    exec(`git commit -m "${escapedMessage}"`, (error, stdout, stderr) => {
       if (error) {
         return res.status(500).json({
           success: false,
