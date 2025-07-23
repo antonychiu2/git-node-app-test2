@@ -95,47 +95,29 @@ app.post('/api/add', async (req, res) => {
   }
 });
 
-// Create a commit with user-provided message
+// Create a commit with user-provided message 
 app.post('/api/commit', async (req, res) => {
   try {
-    // Input validation
     const { message } = req.body;
 
-    if (!message) {
+    // Validate commit message
+    if (!message || typeof message !== 'string' || message.trim() === '') {
       return res.status(400).json({
         success: false,
         error: 'Commit message is required',
-        details: 'Please provide a commit message in the request body'
+        details: 'Please provide a non-empty commit message'
       });
     }
 
-    if (typeof message !== 'string' || message.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid commit message',
-        details: 'Commit message must be a non-empty string'
-      });
-    }
-
-    // Execute git commit command
-    const commitCommand = `git commit -m "${message.replace(/"/g, '\\"')}"`;
-
-    exec(commitCommand, (error, stdout, stderr) => {
+    // Create the commit
+    exec(`git commit -m "${message.replace(/"/g, '\\"')}"`, (error, stdout, stderr) => {
       if (error) {
-        // Handle specific Git errors
-        if (stderr.includes('nothing to commit') || error.message.includes('nothing to commit')) {
+        // Check if it's a "nothing to commit" error
+        if (stderr.includes('nothing to commit') || stdout.includes('nothing to commit')) {
           return res.status(400).json({
             success: false,
             error: 'Nothing to commit',
-            details: 'No changes have been staged for commit. Use "Add Changes" first.'
-          });
-        }
-
-        if (stderr.includes('not a git repository') || error.message.includes('not a git repository')) {
-          return res.status(400).json({
-            success: false,
-            error: 'Not a git repository',
-            details: 'This directory is not a git repository. Initialize git first.'
+            details: 'No staged changes found. Please add changes before committing.'
           });
         }
 
@@ -146,18 +128,16 @@ app.post('/api/commit', async (req, res) => {
         });
       }
 
-      // Extract commit hash from output if available
-      let commitHash = '';
-      const hashMatch = stdout.match(/\[[\w\s]+ ([a-f0-9]+)\]/);
-      if (hashMatch) {
-        commitHash = hashMatch[1];
-      }
+      // Extract commit hash from output (usually in format like "[main abc1234] commit message")
+      const commitHashMatch = stdout.match(/\[.+?\s([a-f0-9]+)\]/);
+      const commitHash = commitHashMatch ? commitHashMatch[1] : null;
 
       res.json({
         success: true,
         message: 'Commit created successfully',
-        output: stdout,
-        commitHash: commitHash
+        commitHash: commitHash,
+        commitMessage: message.trim(),
+        output: stdout
       });
     });
   } catch (error) {
@@ -168,7 +148,6 @@ app.post('/api/commit', async (req, res) => {
     });
   }
 });
-
 
 // Get recent commits 
 app.get('/api/log', async (req, res) => {
