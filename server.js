@@ -108,8 +108,9 @@ app.post('/api/commit', async (req, res) => {
     }
     
     // Escape the commit message to prevent command injection
-    const escapedMessage = message.replace(/"/g, '\\"');
-    
+    //const escapedMessage = message.replace(/"/g, '\\"');
+    const escapedMessage = message
+
     exec(`git commit -m "${escapedMessage}"`, (error, stdout, stderr) => {
       if (error) {
         return res.status(500).json({
