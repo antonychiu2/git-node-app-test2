@@ -1,7 +1,7 @@
 const express = require('express');
 const { exec } = require('child_process');
 const path = require('path');
-const child_process = require('node:child_process');
+
 const fs = require('fs').promises;
 
 // Security scan trigger - Git commit application with web interface
@@ -31,7 +31,7 @@ app.get('/api/status', async (req, res) => {
           details: error1.message || stderr1
         });
       }
-      
+
       exec('git status', (error2, stdout2, stderr2) => {
         if (error2) {
           return res.status(500).json({
@@ -40,7 +40,7 @@ app.get('/api/status', async (req, res) => {
             details: error2.message || stderr2
           });
         }
-        
+
         res.json({
           success: true,
           changes: stdout1,
@@ -63,14 +63,14 @@ app.post('/api/add', async (req, res) => {
     // First, add a new line to test.txt to ensure there are changes to stage
     const timestamp = new Date().toISOString();
     const newLine = `Test line added at: ${timestamp}\n`;
-    
+
     try {
       await fs.appendFile('test.txt', newLine);
     } catch (fileError) {
       console.warn('Could not append to test.txt:', fileError.message);
       // Continue with git add even if file write fails
     }
-    
+
     exec('git add .', (error, stdout, stderr) => {
       if (error) {
         return res.status(500).json({
@@ -79,7 +79,7 @@ app.post('/api/add', async (req, res) => {
           details: error.message || stderr
         });
       }
-      
+
       res.json({
         success: true,
         message: 'All changes added to staging area (including new test line)',
@@ -95,35 +95,69 @@ app.post('/api/add', async (req, res) => {
   }
 });
 
-// Create a commit with user-provided message 
+// Create a commit with user-provided message
 app.post('/api/commit', async (req, res) => {
   try {
+    // Input validation
     const { message } = req.body;
-    
-    if (!message || message.trim() === '') {
+
+    if (!message) {
       return res.status(400).json({
         success: false,
-        error: 'Commit message is required'
+        error: 'Commit message is required',
+        details: 'Please provide a commit message in the request body'
       });
     }
-    
-    // Escape the commit message to prevent command injection
-    const escapedMessage = message.replace(/"/g, '\\"');
-    //const escapedMessage = message
-    
-    exec(`git commit -m "${escapedMessage}"`, (error, stdout, stderr) => {
+
+    if (typeof message !== 'string' || message.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid commit message',
+        details: 'Commit message must be a non-empty string'
+      });
+    }
+
+    // Execute git commit command
+    const commitCommand = `git commit -m "${message.replace(/"/g, '\\"')}"`;
+
+    exec(commitCommand, (error, stdout, stderr) => {
       if (error) {
+        // Handle specific Git errors
+        if (stderr.includes('nothing to commit') || error.message.includes('nothing to commit')) {
+          return res.status(400).json({
+            success: false,
+            error: 'Nothing to commit',
+            details: 'No changes have been staged for commit. Use "Add Changes" first.'
+          });
+        }
+
+        if (stderr.includes('not a git repository') || error.message.includes('not a git repository')) {
+          return res.status(400).json({
+            success: false,
+            error: 'Not a git repository',
+            details: 'This directory is not a git repository. Initialize git first.'
+          });
+        }
+
         return res.status(500).json({
           success: false,
           error: 'Failed to create commit',
           details: error.message || stderr
         });
       }
-      
+
+      // Extract commit hash from output if available
+      let commitHash = '';
+      const hashMatch = stdout.match(/\[[\w\s]+ ([a-f0-9]+)\]/);
+      if (hashMatch) {
+        commitHash = hashMatch[1];
+      }
+
       res.json({
         success: true,
         message: 'Commit created successfully',
-        output: stdout
+        output: stdout,
+        commitHash: commitHash
       });
     });
   } catch (error) {
@@ -134,6 +168,7 @@ app.post('/api/commit', async (req, res) => {
     });
   }
 });
+
 
 // Get recent commits 
 app.get('/api/log', async (req, res) => {
@@ -146,7 +181,7 @@ app.get('/api/log', async (req, res) => {
           details: error.message || stderr
         });
       }
-      
+
       res.json({
         success: true,
         commits: stdout.split('\n').filter(line => line.trim() !== '')
@@ -172,7 +207,7 @@ app.get('/api/check-git', async (req, res) => {
           message: 'This is not a git repository'
         });
       }
-      
+
       res.json({
         success: true,
         isGitRepo: true,
@@ -199,7 +234,7 @@ app.post('/api/init', async (req, res) => {
           details: error.message || stderr
         });
       }
-      
+
       res.json({
         success: true,
         message: 'Git repository initialized',
