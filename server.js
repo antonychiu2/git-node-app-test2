@@ -1,5 +1,5 @@
 const express = require('express');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const path = require('path');
 
 const fs = require('fs').promises;
@@ -100,24 +100,24 @@ app.post('/api/commit', async (req, res) => {
   try {
     const { message } = req.body;
 
-    // Validate commit message
-    if (!message || typeof message !== 'string' || message.trim() === '') {
+    if (!message || message.trim() === '') {
       return res.status(400).json({
         success: false,
-        error: 'Commit message is required',
-        details: 'Please provide a non-empty commit message'
+        error: 'Commit message is required'
       });
     }
 
-    // Create the commit
-    exec(`git commit -m "${message.replace(/"/g, '\\"')}"`, (error, stdout, stderr) => {
+    // Escape the commit message to prevent command injection
+    const escapedMessage = message.replace(/"/g, '\\"');
+
+    execFile('git', ["commit", "-m", escapedMessage], (error, stdout, stderr) => {
       if (error) {
-        // Check if it's a "nothing to commit" error
-        if (stderr.includes('nothing to commit') || stdout.includes('nothing to commit')) {
+        // Check if the error is due to no changes to commit
+        if (stderr.includes('nothing to commit') || error.message.includes('nothing to commit')) {
           return res.status(400).json({
             success: false,
-            error: 'Nothing to commit',
-            details: 'No staged changes found. Please add changes before committing.'
+            error: 'Nothing to commit, working tree clean',
+            details: stderr || error.message
           });
         }
 
@@ -128,16 +128,11 @@ app.post('/api/commit', async (req, res) => {
         });
       }
 
-      // Extract commit hash from output (usually in format like "[main abc1234] commit message")
-      const commitHashMatch = stdout.match(/\[.+?\s([a-f0-9]+)\]/);
-      const commitHash = commitHashMatch ? commitHashMatch[1] : null;
-
       res.json({
         success: true,
         message: 'Commit created successfully',
-        commitHash: commitHash,
-        commitMessage: message.trim(),
-        output: stdout
+        output: stdout,
+        commitMessage: message
       });
     });
   } catch (error) {
