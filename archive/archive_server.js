@@ -1,5 +1,5 @@
 const express = require('express');
-const { exec, execFile } = require('child_process');
+const { exec } = require('child_process');
 const path = require('path');
 const child_process = require('node:child_process');
 const fs = require('fs').promises;
@@ -96,40 +96,7 @@ app.post('/api/add', async (req, res) => {
 });
 
 // Create a commit with user-provided message 
-app.post('/api/commit', async (req, res) => {
-  try {
-    const { message } = req.body;
-    
-    if (!message || message.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        error: 'Commit message is required'
-      });
-    }
 
-    execFile('git', ["commit", "-m", message.trim()], (error, stdout, stderr) => {
-      if (error) {
-        return res.status(500).json({
-          success: false,
-          error: 'Failed to create commit',
-          details: error.message || stderr
-        });
-      }
-      
-      res.json({
-        success: true,
-        message: 'Commit created successfully',
-        output: stdout
-      });
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create commit',
-      details: error.message
-    });
-  }
-});
 
 // Get recent commits 
 app.get('/api/log', async (req, res) => {
@@ -230,5 +197,5 @@ app.listen(PORT, () => {
   console.log('  GET  /api/check-git    - Check if git repo');
   console.log('  POST /api/init         - Initialize git repo');
   console.log('  POST /api/add          - Add all changes');
-  console.log('  POST /api/commit       - Create commit with message');
+  console.log('  POST /api/commit       - Create commit');
 }); 
