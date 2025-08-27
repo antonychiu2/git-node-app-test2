@@ -1,5 +1,5 @@
 const express = require('express');
-const { exec, execFile } = require('child_process');
+const { exec } = require('child_process');
 const path = require('path');
 const child_process = require('node:child_process');
 const fs = require('fs').promises;
@@ -106,8 +106,11 @@ app.post('/api/commit', async (req, res) => {
         error: 'Commit message is required'
       });
     }
-
-    execFile('git', ["commit", "-m", message.trim()], (error, stdout, stderr) => {
+    
+    // Sanitize the commit message to prevent command injection
+    const sanitizedMessage = message.replace(/["`$\\]/g, '');
+    
+    exec(`git commit -m "${sanitizedMessage}"`, (error, stdout, stderr) => {
       if (error) {
         return res.status(500).json({
           success: false,
@@ -230,5 +233,5 @@ app.listen(PORT, () => {
   console.log('  GET  /api/check-git    - Check if git repo');
   console.log('  POST /api/init         - Initialize git repo');
   console.log('  POST /api/add          - Add all changes');
-  console.log('  POST /api/commit       - Create commit with message');
+  console.log('  POST /api/commit       - Create commit');
 }); 
