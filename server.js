@@ -130,7 +130,7 @@ app.post('/api/commit', async (req, res) => {
       }
       
       // Execute commit
-      exec(`git commit -m "${sanitizedMessage}"`, (error2, stdout2, stderr2) => {
+      execFile('git', ["commit", "-m", sanitizedMessage], (error2, stdout2, stderr2) => {
         if (error2) {
           return res.status(500).json({
             success: false,
