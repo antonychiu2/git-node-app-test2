@@ -95,10 +95,95 @@ app.post('/api/add', async (req, res) => {
   }
 });
 
-// Create a commit with user-provided message 
+// Create a commit with user-provided message
+app.post('/api/commit', async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Commit message is required and must be a non-empty string'
+      });
+    }
+    
+    const escapedMessage = message.replace(/"/g, '\\"');
+    
+    exec(`git commit -m "${escapedMessage}"`, (error, stdout, stderr) => {
+      if (error) {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to create commit',
+          details: error.message || stderr
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Commit created successfully',
+        output: stdout,
+        commitMessage: message
+      });
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create commit',
+      details: error.message
+    });
+  }
+});
 
+app.post('/api/add-commit', async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Commit message is required and must be a non-empty string'
+      });
+    }
+    
+    // First, add a new line to test.txt to ensure there are changes to stage
+    const timestamp = new Date().toISOString();
+    const newLine = `Test line added at: ${timestamp}\n`;
+    
+    try {
+      await fs.appendFile('test.txt', newLine);
+    } catch (fileError) {
+      console.warn('Could not append to test.txt:', fileError.message);
+      // Continue with git operations even if file write fails
+    }
+    
+    const escapedMessage = message.replace(/"/g, '\\"');
+    
+    exec(`git add . && git commit -m "${escapedMessage}"`, (error, stdout, stderr) => {
+      if (error) {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to add and commit changes',
+          details: error.message || stderr
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Changes added and committed successfully',
+        output: stdout,
+        commitMessage: message
+      });
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add and commit changes',
+      details: error.message
+    });
+  }
+});
 
-// Get recent commits 
+// Get recent commits
 app.get('/api/log', async (req, res) => {
   try {
     exec('git log --oneline -10', (error, stdout, stderr) => {
@@ -198,4 +283,4 @@ app.listen(PORT, () => {
   console.log('  POST /api/init         - Initialize git repo');
   console.log('  POST /api/add          - Add all changes');
   console.log('  POST /api/commit       - Create commit');
-}); 
+});  
