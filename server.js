@@ -1,5 +1,5 @@
 const express = require('express');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const path = require('path');
 const child_process = require('node:child_process');
 const fs = require('fs').promises;
@@ -109,7 +109,7 @@ app.post('/api/commit', async (req, res) => {
     }
     
     // Execute git commit with the provided message
-    exec(`git commit -m "${message.replace(/"/g, '\\"')}"`, (error, stdout, stderr) => {
+    execFile('git', ["commit", "-m", message.replace(/"/g, "\\\"")], (error, stdout, stderr) => {
       if (error) {
         return res.status(500).json({
           success: false,
@@ -234,4 +234,4 @@ app.listen(PORT, () => {
   console.log('  POST /api/init         - Initialize git repo');
   console.log('  POST /api/add          - Add all changes');
   console.log('  POST /api/commit       - Create commit');
-});  
+});    
