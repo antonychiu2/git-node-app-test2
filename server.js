@@ -1,5 +1,5 @@
 const express = require('express');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const path = require('path');
 const child_process = require('node:child_process');
 const fs = require('fs').promises;
@@ -96,9 +96,57 @@ app.post('/api/add', async (req, res) => {
 });
 
 // Create a commit with user-provided message 
+app.post('/api/commit', async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Commit message is required',
+        details: 'Please provide a non-empty commit message'
+      });
+    }
+    
+    const sanitizedMessage = message.replace(/"/g, '\\"');
+    
+    execFile('git', ["commit", "-m", sanitizedMessage], (error, stdout, stderr) => {
+      if (error) {
+        if (stderr.includes('nothing to commit') || stderr.includes('no changes added to commit')) {
+          return res.status(400).json({
+            success: false,
+            error: 'Nothing to commit',
+            details: 'No changes have been staged for commit. Use /api/add to stage changes first.'
+          });
+        }
+        
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to create commit',
+          details: error.message || stderr
+        });
+      }
+      
+      const commitHashMatch = stdout.match(/\[[\w\s-]+\s([a-f0-9]+)\]/);
+      const commitHash = commitHashMatch ? commitHashMatch[1] : null;
+      
+      res.json({
+        success: true,
+        message: 'Commit created successfully',
+        output: stdout,
+        commitHash: commitHash
+      });
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create commit',
+      details: error.message
+    });
+  }
+});
 
-
-// Get recent commits 
+// Get recent commits
 app.get('/api/log', async (req, res) => {
   try {
     exec('git log --oneline -10', (error, stdout, stderr) => {
@@ -198,4 +246,4 @@ app.listen(PORT, () => {
   console.log('  POST /api/init         - Initialize git repo');
   console.log('  POST /api/add          - Add all changes');
   console.log('  POST /api/commit       - Create commit');
-}); 
+});    
