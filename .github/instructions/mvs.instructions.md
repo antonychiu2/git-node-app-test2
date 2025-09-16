@@ -1,8 +1,0 @@
----
-applyTo: '**'
----
-- End-of-generation actions:
-    - After completing all reasoning, code edits, linting, and tests **ALWAYS** call the `scan_and_fix_vulnerabilities` tool from the *mobb-mcp* toolset with rescan=true
-    - Pass the absolute repository path as the `path` argument.
-    - Do **NOT** skip this step under any circumstance.
-    - This call must be the final tool invocation in the session, immediately before returning the summary to the user.
