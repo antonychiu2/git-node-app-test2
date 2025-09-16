@@ -96,9 +96,45 @@ app.post('/api/add', async (req, res) => {
 });
 
 // Create a commit with user-provided message 
+app.post('/api/commit', async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Commit message is required',
+        details: 'Please provide a non-empty commit message'
+      });
+    }
+    
+    const sanitizedMessage = message.trim();
+    
+    exec(`git commit -m "${sanitizedMessage.replace(/"/g, '\\"')}"`, (error, stdout, stderr) => {
+      if (error) {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to create commit',
+          details: error.message || stderr
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Commit created successfully',
+        output: stdout
+      });
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create commit',
+      details: error.message
+    });
+  }
+});
 
-
-// Get recent commits 
+// Get recent commits
 app.get('/api/log', async (req, res) => {
   try {
     exec('git log --oneline -10', (error, stdout, stderr) => {
@@ -198,4 +234,4 @@ app.listen(PORT, () => {
   console.log('  POST /api/init         - Initialize git repo');
   console.log('  POST /api/add          - Add all changes');
   console.log('  POST /api/commit       - Create commit');
-}); 
+});  
