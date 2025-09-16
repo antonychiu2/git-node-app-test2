@@ -1,8 +1,0 @@
-{
-	"mcpServers": {
-		"mobb-mcp2": {
-			"command": "npx",
-			"args": ["mobbdev@latest", "mcp"]
-		}
-	}
-}
