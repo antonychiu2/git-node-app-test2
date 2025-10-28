@@ -1,6 +1,7 @@
 const express = require('express');
-const { execFile } = require('child_process');
+const { exec } = require('child_process');
 const path = require('path');
+const child_process = require('node:child_process');
 const fs = require('fs').promises;
 
 // Security scan trigger - Git commit application with web interface
@@ -15,14 +16,14 @@ app.use(express.static('public'));
 // Routes
 
 // Serve the main page
-app.get('/', (_req, res) => {
+app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Get git status
-app.get('/api/status', async (_req, res) => {
+app.get('/api/status', async (req, res) => {
   try {
-    execFile('git', ['status', '--porcelain'], (error1, stdout1, stderr1) => {
+    exec('git status --porcelain', (error1, stdout1, stderr1) => {
       if (error1) {
         return res.status(500).json({
           success: false,
@@ -30,8 +31,8 @@ app.get('/api/status', async (_req, res) => {
           details: error1.message || stderr1
         });
       }
-
-      execFile('git', ['status'], (error2, stdout2, stderr2) => {
+      
+      exec('git status', (error2, stdout2, stderr2) => {
         if (error2) {
           return res.status(500).json({
             success: false,
@@ -39,7 +40,7 @@ app.get('/api/status', async (_req, res) => {
             details: error2.message || stderr2
           });
         }
-
+        
         res.json({
           success: true,
           changes: stdout1,
@@ -57,20 +58,20 @@ app.get('/api/status', async (_req, res) => {
 });
 
 // Add all changes to staging
-app.post('/api/add', async (_req, res) => {
+app.post('/api/add', async (req, res) => {
   try {
     // First, add a new line to test.txt to ensure there are changes to stage
     const timestamp = new Date().toISOString();
     const newLine = `Test line added at: ${timestamp}\n`;
-
+    
     try {
       await fs.appendFile('test.txt', newLine);
     } catch (fileError) {
       console.warn('Could not append to test.txt:', fileError.message);
       // Continue with git add even if file write fails
     }
-
-    execFile('git', ['add', '.'], (error, stdout, stderr) => {
+    
+    exec('git add .', (error, stdout, stderr) => {
       if (error) {
         return res.status(500).json({
           success: false,
@@ -78,7 +79,7 @@ app.post('/api/add', async (_req, res) => {
           details: error.message || stderr
         });
       }
-
+      
       res.json({
         success: true,
         message: 'All changes added to staging area (including new test line)',
@@ -96,10 +97,11 @@ app.post('/api/add', async (_req, res) => {
 
 // Create a commit with user-provided message 
 
+
 // Get recent commits 
-app.get('/api/log', async (_req, res) => {
+app.get('/api/log', async (req, res) => {
   try {
-    execFile('git', ['log', '--oneline', '-10'], (error, stdout, stderr) => {
+    exec('git log --oneline -10', (error, stdout, stderr) => {
       if (error) {
         return res.status(500).json({
           success: false,
@@ -107,7 +109,7 @@ app.get('/api/log', async (_req, res) => {
           details: error.message || stderr
         });
       }
-
+      
       res.json({
         success: true,
         commits: stdout.split('\n').filter(line => line.trim() !== '')
@@ -123,9 +125,9 @@ app.get('/api/log', async (_req, res) => {
 });
 
 // Check if directory is a git repository 
-app.get('/api/check-git', async (_req, res) => {
+app.get('/api/check-git', async (req, res) => {
   try {
-    execFile('git', ['rev-parse', '--git-dir'], (error, stdout, _stderr) => {
+    exec('git rev-parse --git-dir', (error, stdout, stderr) => {
       if (error) {
         return res.json({
           success: false,
@@ -133,7 +135,7 @@ app.get('/api/check-git', async (_req, res) => {
           message: 'This is not a git repository'
         });
       }
-
+      
       res.json({
         success: true,
         isGitRepo: true,
@@ -150,9 +152,9 @@ app.get('/api/check-git', async (_req, res) => {
 });
 
 // Initialize git repository
-app.post('/api/init', async (_req, res) => {
+app.post('/api/init', async (req, res) => {
   try {
-    execFile('git', ['init'], (error, stdout, stderr) => {
+    exec('git init', (error, stdout, stderr) => {
       if (error) {
         return res.status(500).json({
           success: false,
@@ -160,7 +162,7 @@ app.post('/api/init', async (_req, res) => {
           details: error.message || stderr
         });
       }
-
+      
       res.json({
         success: true,
         message: 'Git repository initialized',
@@ -177,7 +179,7 @@ app.post('/api/init', async (_req, res) => {
 });
 
 // Error handling middleware
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
     success: false,
@@ -195,5 +197,5 @@ app.listen(PORT, () => {
   console.log('  GET  /api/check-git    - Check if git repo');
   console.log('  POST /api/init         - Initialize git repo');
   console.log('  POST /api/add          - Add all changes');
-
-});
+  console.log('  POST /api/commit       - Create commit');
+}); 

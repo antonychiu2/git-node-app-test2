@@ -2,10 +2,7 @@
 	"mcpServers": {
 		"mobb-mcp": {
 			"command": "npx",
-			"args": ["--yes", "mobbdev@latest", "mcp"],
-			"env" : {
-				"TOOLS_ENABLED" : ["fetch_available_fixes, scan_and_fix_vulnerabilities"]
-			}
+			"args": ["--yes", "mobbdev@latest", "mcp"]
 		}
 	}
 }
