@@ -17,7 +17,7 @@ When Mobb produces a fix:
 - **If rule file doesn't exist**: Create a new rule file: `[vulnerability-type].md` (e.g., `command-injection.md`)
 - Add the rule with clear, actionable guidance and `alwaysApply: true`
 - Make the rule specific enough to prevent the issue but generic enough to apply broadly
-- Update the main `GEMINI.md` to reference the rule file (if it's new) using the following format `@[vulnerability-type].md`
+- Update the main `GEMINI.md` to reference the new rule file (if it's newly created) by following the format: `@[vulnerability-type].md`
 
 ## Enforcement
 - This rule is ALWAYS APPLIED and cannot be bypassed
