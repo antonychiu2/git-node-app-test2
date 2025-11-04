@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "mobb-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mobbdev@latest",
+        "mcp"
+      ],
+      "env": {}
+    }
+  }
+}
