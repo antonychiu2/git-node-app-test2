@@ -1,0 +1,11 @@
+{
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "mobb-mcp"
+  ],
+  "permissions": {
+    "allow": [
+      "mcp__mobb-mcp__scan_and_fix_vulnerabilities"
+    ]
+  }
+}
