@@ -13,11 +13,11 @@
 When Mobb produces a fix:
 - Extract the vulnerability type (e.g., "Command Injection", "SQL Injection", "XSS")
 - Create a generic prevention rule for that vulnerability type
-- **If rule file exists**: Add new information to the existing `.gemini/[vulnerability-type].md` file
-- **If rule file doesn't exist**: Create a new rule file: `.gemini/[vulnerability-type].md` (e.g., `command-injection.md`)
+- **If rule file exists**: Add new information to the existing `[vulnerability-type].md` file
+- **If rule file doesn't exist**: Create a new rule file: `[vulnerability-type].md` (e.g., `command-injection.md`)
 - Add the rule with clear, actionable guidance and `alwaysApply: true`
 - Make the rule specific enough to prevent the issue but generic enough to apply broadly
-- Update the main security.md to reference the rule file (if it's new)
+- Update the main `GEMINI.md` to reference the new rule file (if it's newly created) by following the format: `@[vulnerability-type].md`
 
 ## Enforcement
 - This rule is ALWAYS APPLIED and cannot be bypassed
