@@ -1,5 +1,5 @@
 const express = require('express');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const path = require('path');
 const child_process = require('node:child_process');
 const fs = require('fs').promises;
@@ -95,64 +95,56 @@ app.post('/api/add', async (req, res) => {
   }
 });
 
-// Create a commit with user-provided message 
+// Create a commit with user-provided message
 app.post('/api/commit', async (req, res) => {
   try {
     const { message } = req.body;
     
     // Validate commit message
-    if (!message || typeof message !== 'string' || message.trim() === '') {
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'Commit message is required and must be a non-empty string'
+        error: 'Invalid commit message',
+        details: 'Commit message is required and must be a non-empty string'
       });
     }
     
-    // Sanitize the commit message to prevent command injection
-    const sanitizedMessage = message.trim().replace(/'/g, "\\'");
+    const trimmedMessage = message.trim();
     
     // Check if there are any staged changes
-    exec('git diff --cached --quiet', (diffError) => {
-      // If exit code is 0, there are no staged changes
-      // If exit code is 1, there are staged changes
-      // If there's another error, handle it
-      
-      if (diffError && diffError.code !== 1) {
+    exec('git diff --staged --name-only', (statusError, statusStdout, statusStderr) => {
+      if (statusError) {
         return res.status(500).json({
           success: false,
           error: 'Failed to check staged changes',
-          details: diffError.message
+          details: statusError.message || statusStderr
         });
       }
       
-      // If no staged changes (diffError is null or code is 0)
-      if (!diffError || diffError.code === 0) {
+      // If no staged changes, return an error
+      if (!statusStdout.trim()) {
         return res.status(400).json({
           success: false,
-          error: 'No staged changes to commit',
-          message: 'Please add changes to the staging area before committing'
+          error: 'No changes to commit',
+          details: 'There are no staged changes. Use "Add Changes" first.'
         });
       }
       
-      // Create the commit
-      exec(`git commit -m '${sanitizedMessage}'`, (commitError, stdout, stderr) => {
-        if (commitError) {
+      // Create the commit with the provided message
+      execFile('git', ["commit", "-m", trimmedMessage.replace(/"/g, '\"')], (error, stdout, stderr) => {
+        if (error) {
           return res.status(500).json({
             success: false,
             error: 'Failed to create commit',
-            details: commitError.message || stderr
+            details: error.message || stderr
           });
         }
-        
-        // Get the commit hash from the output
-        const commitHash = stdout.match(/\[.+\s+([a-f0-9]+)\]/);
-        const hash = commitHash ? commitHash[1] : 'unknown';
         
         res.json({
           success: true,
           message: 'Commit created successfully',
-          commitHash: hash,
-          output: stdout.trim()
+          output: stdout,
+          commitMessage: trimmedMessage
         });
       });
     });
@@ -264,5 +256,5 @@ app.listen(PORT, () => {
   console.log('  GET  /api/check-git    - Check if git repo');
   console.log('  POST /api/init         - Initialize git repo');
   console.log('  POST /api/add          - Add all changes');
-  console.log('  POST /api/commit       - Create commit');
+  console.log('  POST /api/commit       - Create commit with message');
 }); 
