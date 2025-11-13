@@ -96,7 +96,74 @@ app.post('/api/add', async (req, res) => {
 });
 
 // Create a commit with user-provided message 
-
+app.post('/api/commit', async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    // Validate commit message
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Commit message is required and must be a non-empty string'
+      });
+    }
+    
+    // Sanitize the commit message to prevent command injection
+    const sanitizedMessage = message.trim().replace(/'/g, "\\'");
+    
+    // Check if there are any staged changes
+    exec('git diff --cached --quiet', (diffError) => {
+      // If exit code is 0, there are no staged changes
+      // If exit code is 1, there are staged changes
+      // If there's another error, handle it
+      
+      if (diffError && diffError.code !== 1) {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to check staged changes',
+          details: diffError.message
+        });
+      }
+      
+      // If no staged changes (diffError is null or code is 0)
+      if (!diffError || diffError.code === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'No staged changes to commit',
+          message: 'Please add changes to the staging area before committing'
+        });
+      }
+      
+      // Create the commit
+      exec(`git commit -m '${sanitizedMessage}'`, (commitError, stdout, stderr) => {
+        if (commitError) {
+          return res.status(500).json({
+            success: false,
+            error: 'Failed to create commit',
+            details: commitError.message || stderr
+          });
+        }
+        
+        // Get the commit hash from the output
+        const commitHash = stdout.match(/\[.+\s+([a-f0-9]+)\]/);
+        const hash = commitHash ? commitHash[1] : 'unknown';
+        
+        res.json({
+          success: true,
+          message: 'Commit created successfully',
+          commitHash: hash,
+          output: stdout.trim()
+        });
+      });
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create commit',
+      details: error.message
+    });
+  }
+});
 
 // Get recent commits 
 app.get('/api/log', async (req, res) => {
