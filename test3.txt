@@ -1,0 +1,5 @@
+This is test3.txt
+Line 2: Testing content addition
+Line 3: More test data here
+Line 4: Additional content for demonstration
+Line 5: Final line of test content
