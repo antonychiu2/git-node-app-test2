@@ -1,0 +1,75 @@
+name: Opengrep SAST
+
+on:
+  pull_request:
+  # Scanning the default branch gives GitHub code scanning a baseline, so PR
+  # alerts are shown as "new" vs. "already present" relative to main.
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: opengrep-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OPENGREP_VERSION: v1.30.0
+  # Rule folders from https://github.com/opengrep/opengrep-rules to scan with.
+  RULE_SETS: javascript typescript generic json yaml dockerfile html
+
+jobs:
+  opengrep:
+    name: Opengrep scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # upload SARIF to code scanning
+      actions: read          # required by upload-sarif on private repos
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Opengrep
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o "$HOME/.local/bin/opengrep" \
+            "https://github.com/opengrep/opengrep/releases/download/${OPENGREP_VERSION}/opengrep_manylinux_x86"
+          chmod +x "$HOME/.local/bin/opengrep"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/opengrep" --version
+
+      - name: Fetch Opengrep rules
+        run: |
+          git clone --depth 1 https://github.com/opengrep/opengrep-rules.git "$RUNNER_TEMP/opengrep-rules"
+          cd "$RUNNER_TEMP/opengrep-rules"
+          # Drop test fixtures so they are not loaded as rule configs.
+          find . -name '*.test.yaml' -o -name '*.test.yml' | xargs -r rm -f
+          mkdir -p "$RUNNER_TEMP/rules"
+          for set in $RULE_SETS; do
+            cp -r "$set" "$RUNNER_TEMP/rules/"
+          done
+
+      - name: Run Opengrep
+        run: |
+          opengrep scan \
+            --config "$RUNNER_TEMP/rules" \
+            --sarif --output opengrep.sarif \
+            .
+
+      - name: Upload SARIF to GitHub code scanning
+        if: always() && hashFiles('opengrep.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: opengrep.sarif
+          category: opengrep
+
+      - name: Upload SARIF as workflow artifact
+        if: always() && hashFiles('opengrep.sarif') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: opengrep-sarif
+          path: opengrep.sarif
+          retention-days: 30
