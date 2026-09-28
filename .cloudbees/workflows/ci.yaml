@@ -41,6 +41,24 @@ jobs:
         uses: docker://node:22
         run: exit "$(cat "$CLOUDBEES_WORKSPACE/test-results/exit-code")"
 
+  version-check:
+    # This org's cloudbees.scm context has no PR base-branch/sha field (only
+    # branch, ref, sha, repository, ...), so we can't target the PR's actual
+    # base branch. Every PR in this repo targets main, so compare against
+    # that directly; skip when this workflow is itself running on main
+    # (i.e. workflow_call from deploy.yaml on push to main).
+    if: ${{ cloudbees.scm.branch != 'main' }}
+    steps:
+      - name: Check out code
+        uses: cloudbees-io/checkout@v1
+
+      - name: Check VERSION was bumped by exactly 0.1
+        uses: docker://node:22
+        run: |
+          cd "$CLOUDBEES_WORKSPACE"
+          git config --global --add safe.directory "$CLOUDBEES_WORKSPACE"
+          node scripts/check-version-bump.js main
+
   test-node-24:
     steps:
       - name: Check out code

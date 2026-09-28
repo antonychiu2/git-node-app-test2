@@ -36,6 +36,22 @@ jobs:
       - name: Run tests
         run: npm test
 
+  version-check:
+    name: Version bump check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check VERSION was bumped by exactly 0.1
+        run: node scripts/check-version-bump.js "${{ github.event.pull_request.base.sha }}"
+
   docker-build:
     name: Docker build (no push)
     # On main, deploy.yml builds and pushes the image, so only verify it on PRs.
