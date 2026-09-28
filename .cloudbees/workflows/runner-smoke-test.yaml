@@ -1,0 +1,18 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: Runner smoke test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  hello:
+    runs-on: antony-ubuntu-vm
+    steps:
+      - name: Hello from the edge runner
+        uses: docker://alpine:3.20
+        run: |
+          echo "Running on the edge runner"
+          apk add --no-cache curl >/dev/null
+          echo "App (staging NodePort):"
+          curl -s -o /dev/null -w "HTTP %{http_code}\n" http://antony-ubuntu-vm:30080/ || echo "unreachable"
