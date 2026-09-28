@@ -1,0 +1,79 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: SAST
+
+on:
+  pull_request:
+    branches:
+      - "**"
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  OPENGREP_VERSION: v1.30.0
+  # Rule folders from https://github.com/opengrep/opengrep-rules to scan with.
+  RULE_SETS: javascript typescript generic json yaml dockerfile html
+
+jobs:
+  opengrep:
+    steps:
+      - name: Check out code
+        uses: cloudbees-io/checkout@v1
+
+      - id: scan
+        name: Run Opengrep
+        uses: docker://alpine:3.20
+        kind: scan
+        run: |
+          set -eu
+          cd "$CLOUDBEES_WORKSPACE"
+          apk add --no-cache curl git jq >/dev/null
+
+          curl -fsSL -o /usr/local/bin/opengrep \
+            "https://github.com/opengrep/opengrep/releases/download/${OPENGREP_VERSION}/opengrep_musllinux_x86"
+          chmod +x /usr/local/bin/opengrep
+          opengrep --version
+
+          # Rules live in a fixed workspace-relative folder so rule IDs are stable
+          # (e.g. opengrep_rules.javascript...), and that folder is excluded from the scan.
+          git clone --depth 1 -q https://github.com/opengrep/opengrep-rules.git /tmp/opengrep-rules
+          find /tmp/opengrep-rules \( -name '*.test.yaml' -o -name '*.test.yml' \) -delete
+          mkdir -p opengrep_rules
+          for set in $RULE_SETS; do cp -r "/tmp/opengrep-rules/$set" opengrep_rules/; done
+
+          opengrep scan --config opengrep_rules --exclude opengrep_rules \
+            --sarif --output opengrep.sarif .
+
+          # Markdown summary for the run's Evidence tab.
+          jq -r '
+            .runs[0] as $r
+            | (($r.tool.driver.rules // []) | map({(.id): (.defaultConfiguration.level // "warning")}) | add // {}) as $lvl
+            | [$r.results[] | {
+                level: ($lvl[.ruleId] // "warning"),
+                rule: (.ruleId | split(".") | last),
+                loc: "\(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)"
+              }] as $f
+            | "## Opengrep SAST (\(env.OPENGREP_VERSION))\n\n"
+              + "**\($f | length) findings** — "
+              + ($f | group_by(.level) | map("\(.[0].level): \(length)") | join(", ")) + "\n\n"
+              + "| Severity | Rule | Location |\n|---|---|---|\n"
+              + ($f | sort_by(.level) | .[:50] | map("| \(.level) | `\(.rule)` | `\(.loc)` |") | join("\n"))
+          ' opengrep.sarif > "$CLOUDBEES_OUTPUTS/summary"
+          cat "$CLOUDBEES_OUTPUTS/summary"
+
+      - name: Publish Opengrep summary as evidence
+        uses: cloudbees-io/publish-evidence-item@v1
+        with:
+          content: ${{ steps.scan.outputs.summary }}
+
+  # Unify-native Node.js SAST: findings land in the component's security view.
+  njsscan:
+    steps:
+      - name: Check out code
+        uses: cloudbees-io/checkout@v1
+
+      - name: Scan with njsscan
+        uses: cloudbees-io/njsscan-hybrid-plugin@v1
+        kind: scan

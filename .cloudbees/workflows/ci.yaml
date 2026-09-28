@@ -1,0 +1,71 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - "**"
+  # deploy.yaml calls this on pushes to main, so tests gate every publish.
+  workflow_call:
+
+jobs:
+  test-node-22:
+    steps:
+      - name: Check out code
+        uses: cloudbees-io/checkout@v1
+
+      # Record the exit code instead of failing here, so test results are
+      # published to Unify even when tests fail; the last step fails the job.
+      - name: Run tests (Node 22)
+        uses: docker://node:22
+        kind: test
+        run: |
+          cd "$CLOUDBEES_WORKSPACE"
+          git config --global --add safe.directory "$CLOUDBEES_WORKSPACE"
+          npm ci
+          mkdir -p test-results
+          set +e
+          node --test \
+            --test-reporter=spec --test-reporter-destination=stdout \
+            --test-reporter=junit --test-reporter-destination=test-results/junit.xml
+          echo $? > test-results/exit-code
+
+      - name: Publish test results
+        uses: cloudbees-io/publish-test-results@v2
+        with:
+          test-type: junit
+          results-path: ${{ cloudbees.workspace }}/test-results/junit.xml
+
+      - name: Fail if tests failed
+        uses: docker://node:22
+        run: exit "$(cat "$CLOUDBEES_WORKSPACE/test-results/exit-code")"
+
+  test-node-24:
+    steps:
+      - name: Check out code
+        uses: cloudbees-io/checkout@v1
+
+      - name: Run tests (Node 24)
+        uses: docker://node:24
+        kind: test
+        run: |
+          cd "$CLOUDBEES_WORKSPACE"
+          git config --global --add safe.directory "$CLOUDBEES_WORKSPACE"
+          npm ci
+          mkdir -p test-results
+          set +e
+          node --test \
+            --test-reporter=spec --test-reporter-destination=stdout \
+            --test-reporter=junit --test-reporter-destination=test-results/junit.xml
+          echo $? > test-results/exit-code
+
+      - name: Publish test results
+        uses: cloudbees-io/publish-test-results@v2
+        with:
+          test-type: junit
+          results-path: ${{ cloudbees.workspace }}/test-results/junit.xml
+
+      - name: Fail if tests failed
+        uses: docker://node:24
+        run: exit "$(cat "$CLOUDBEES_WORKSPACE/test-results/exit-code")"
