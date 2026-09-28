@@ -3,6 +3,7 @@ const { exec } = require('child_process');
 const path = require('path');
 const child_process = require('node:child_process');
 const fs = require('fs').promises;
+const { readFileSync } = require('fs');
 
 // Security scan trigger - Git commit application with web interface
 const app = express();
@@ -13,11 +14,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
+// VERSION is the single source of truth for the app version; read once at
+// startup so /api/version doesn't hit the filesystem on every request.
+const APP_VERSION = readFileSync(path.join(__dirname, 'VERSION'), 'utf8').trim();
+
 // Routes
 
 // Serve the main page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Get the deployed app version
+app.get('/api/version', (req, res) => {
+  res.json({ version: APP_VERSION });
 });
 
 // Get git status

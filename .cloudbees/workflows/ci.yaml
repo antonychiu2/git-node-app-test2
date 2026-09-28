@@ -41,6 +41,19 @@ jobs:
         uses: docker://node:22
         run: exit "$(cat "$CLOUDBEES_WORKSPACE/test-results/exit-code")"
 
+  version-check:
+    if: ${{ cloudbees.event_name == 'pull_request' }}
+    steps:
+      - name: Check out code
+        uses: cloudbees-io/checkout@v1
+
+      - name: Check VERSION was bumped by exactly 0.1
+        uses: docker://node:22
+        run: |
+          cd "$CLOUDBEES_WORKSPACE"
+          git config --global --add safe.directory "$CLOUDBEES_WORKSPACE"
+          node scripts/check-version-bump.js "${{ cloudbees.scm.pullRequest.base.sha }}"
+
   test-node-24:
     steps:
       - name: Check out code

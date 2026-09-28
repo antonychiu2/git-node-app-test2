@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-COPY server.js ./
+COPY server.js VERSION ./
 COPY public ./public
 
 # Run as the unprivileged "node" user; it needs to own /app because
