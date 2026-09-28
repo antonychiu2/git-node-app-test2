@@ -42,7 +42,7 @@ jobs:
         run: exit "$(cat "$CLOUDBEES_WORKSPACE/test-results/exit-code")"
 
   version-check:
-    if: ${{ cloudbees.event_name == 'pull_request' }}
+    if: ${{ cloudbees.scm.pullRequest.number != null }}
     steps:
       - name: Check out code
         uses: cloudbees-io/checkout@v1
