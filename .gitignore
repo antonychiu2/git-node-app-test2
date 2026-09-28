@@ -1,3 +1,6 @@
 node_modules/
 .mobb/
 **/.mobb
+# CI outputs
+test-results/
+.smart-tests/

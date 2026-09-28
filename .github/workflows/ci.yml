@@ -23,6 +23,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # CloudBees Smart Tests reads the commit history to see what changed.
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -30,11 +33,34 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
 
+      # The Smart Tests CLI is a Python package (the runner already has Java).
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Install dependencies
         run: npm ci
 
+      # Observation: every test still runs; builds, sessions and results are
+      # recorded so Smart Tests learns. Skipped if SMART_TESTS_TOKEN is unset.
+      - name: 'Smart Tests: record build and session'
+        env:
+          SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+        run: sh scripts/smart-tests.sh start "gha-${{ github.run_id }}-${{ github.run_attempt }}-node${{ matrix.node }}" "unit-node${{ matrix.node }}"
+
       - name: Run tests
-        run: npm test
+        run: |
+          mkdir -p test-results
+          node --test \
+            --test-reporter=spec --test-reporter-destination=stdout \
+            --test-reporter=junit --test-reporter-destination=test-results/junit.xml
+
+      - name: 'Smart Tests: record test results'
+        if: always()
+        env:
+          SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+        run: sh scripts/smart-tests.sh record test-results/junit.xml
 
   docker-build:
     name: Docker build (no push)

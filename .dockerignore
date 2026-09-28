@@ -11,3 +11,7 @@ test.txt
 *.md
 Dockerfile
 .dockerignore
+.smart-tests
+test-results
+smart-tests-demo
+scripts

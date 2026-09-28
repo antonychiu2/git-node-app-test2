@@ -1,0 +1,74 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: Smart Tests demo
+
+# Demonstrates CloudBees Smart Tests predictive test selection on the demo
+# suite in smart-tests-demo/ (~50 tests, ~12s serial, one deliberately flaky test).
+#
+#   1. record build + session
+#   2. ask Smart Tests which test files to run (subset) for this change
+#   3. run only those, publish results to Unify and record them in Smart Tests
+#
+# SMART_TESTS_MODE: subset (run the selection), observe (run everything, but
+# record what the selection would have been) or full (no selection).
+# With little history, the first runs select most tests; the selection sharpens
+# as Smart Tests learns which suites fail after which changes.
+# Test failures don't fail this job: it's a demo, and the flaky test is intended.
+
+on:
+  pull_request:
+    branches:
+      - "**"
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  SMART_TESTS_MODE: subset
+  SMART_TESTS_TARGET: 40%
+
+jobs:
+  smart-tests-demo:
+    steps:
+      - name: Check out code
+        uses: cloudbees-io/checkout@v1
+        with:
+          fetch-depth: "0"
+
+      - name: "Smart Tests: record build/session and select tests"
+        uses: docker://python:3.12-slim
+        env:
+          SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+        run: |
+          cd "$CLOUDBEES_WORKSPACE"
+          sh scripts/smart-tests.sh start "unify-demo-${{ cloudbees.scm.sha }}-$(date +%s)" smart-tests-demo
+          sh scripts/smart-tests.sh subset "$SMART_TESTS_TARGET" "$SMART_TESTS_MODE" smart-tests-demo/suites/*.check.js
+
+      - name: Run selected demo tests
+        uses: docker://node:22
+        kind: test
+        run: |
+          cd "$CLOUDBEES_WORKSPACE"
+          mkdir -p test-results
+          set +e
+          # shellcheck disable=SC2046
+          node --test --test-concurrency=1 \
+            --test-reporter=spec --test-reporter-destination=stdout \
+            --test-reporter=junit --test-reporter-destination=test-results/smart-tests-demo.xml \
+            $(cat .smart-tests/subset.txt)
+          echo "Demo tests exit code: $?"
+
+      - name: Publish test results
+        uses: cloudbees-io/publish-test-results@v2
+        with:
+          test-type: junit
+          results-path: ${{ cloudbees.workspace }}/test-results/smart-tests-demo.xml
+
+      - name: "Smart Tests: record test results"
+        uses: docker://python:3.12-slim
+        env:
+          SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+        run: |
+          cd "$CLOUDBEES_WORKSPACE"
+          sh scripts/smart-tests.sh record test-results/smart-tests-demo.xml
