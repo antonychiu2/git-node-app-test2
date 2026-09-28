@@ -5,7 +5,7 @@
 'use strict';
 
 const { execFileSync } = require('node:child_process');
-const { readFileSync } = require('node:fs');
+const fs = require('node:fs');
 
 function fail(message) {
   console.error(`::error::${message}`);
@@ -26,7 +26,7 @@ if (!baseRef) {
   fail('Usage: check-version-bump.js <base-ref-or-sha>');
 }
 
-const head = parseVersion(readFileSync('VERSION', 'utf8'), 'Head');
+const head = parseVersion(fs.readFileSync('VERSION', 'utf8'), 'Head');
 
 execFileSync('git', ['fetch', '--depth', '1', 'origin', baseRef], { stdio: 'inherit' });
 
