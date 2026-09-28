@@ -21,18 +21,22 @@ function parseVersion(raw, label) {
   return { major: Number(match[1]), minor: Number(match[2]), raw: trimmed };
 }
 
-const baseSha = process.argv[2];
-if (!baseSha) {
-  fail('Usage: check-version-bump.js <base-sha>');
+const baseRef = process.argv[2];
+if (!baseRef) {
+  fail('Usage: check-version-bump.js <base-ref-or-sha>');
 }
 
 const head = parseVersion(readFileSync('VERSION', 'utf8'), 'Head');
 
-execFileSync('git', ['fetch', '--depth', '1', 'origin', baseSha], { stdio: 'inherit' });
+execFileSync('git', ['fetch', '--depth', '1', 'origin', baseRef], { stdio: 'inherit' });
 
+// Read via FETCH_HEAD rather than baseRef itself: a bare branch name isn't
+// guaranteed to resolve to a revision after a shallow fetch in every
+// checkout configuration, but FETCH_HEAD always points at what was just
+// fetched (whether baseRef was a branch name or a commit sha).
 let baseRaw;
 try {
-  baseRaw = execFileSync('git', ['show', `${baseSha}:VERSION`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  baseRaw = execFileSync('git', ['show', 'FETCH_HEAD:VERSION'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 } catch (error) {
   // The target branch predates VERSION (e.g. this is the PR introducing it).
   // Nothing to compare against, so any valid MAJOR.MINOR value is accepted.
