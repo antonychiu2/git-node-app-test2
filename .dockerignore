@@ -1,0 +1,13 @@
+.git
+.github
+.claude
+.cursor
+node_modules
+npm-debug.log
+archive
+test
+secrets.txt
+test.txt
+*.md
+Dockerfile
+.dockerignore
