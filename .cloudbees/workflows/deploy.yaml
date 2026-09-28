@@ -1,0 +1,42 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: Deploy to Docker Hub
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test:
+    uses: .cloudbees/workflows/ci.yaml
+
+  build-and-push:
+    needs: test
+    steps:
+      - name: Check out code
+        uses: cloudbees-io/checkout@v1
+
+      - name: Log in to Docker Hub
+        uses: cloudbees-io/configure-oci-credentials@v1
+        with:
+          registry: https://index.docker.io/v1/
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Kaniko pushes the immutable sha-<commit> tag and registers it in Unify
+      # as the build artifact version the release workflow promotes.
+      - name: Build and push image
+        uses: cloudbees-io/kaniko@v1
+        kind: build
+        with:
+          destination: docker.io/${{ vars.DOCKERHUB_USERNAME }}/git-node-app-test2:sha-${{ cloudbees.scm.sha }}
+          labels: org.opencontainers.image.revision=${{ cloudbees.scm.sha }},org.opencontainers.image.source=${{ cloudbees.scm.repositoryUrl }}
+
+      # Move "latest" separately with crane so it isn't registered as its own
+      # artifact version in Unify.
+      - name: Tag image as latest
+        uses: docker://gcr.io/go-containerregistry/crane:debug
+        run: |
+          crane tag "docker.io/${{ vars.DOCKERHUB_USERNAME }}/git-node-app-test2:sha-${{ cloudbees.scm.sha }}" latest
