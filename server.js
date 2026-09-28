@@ -187,15 +187,19 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Git commit server running on http://localhost:${String(PORT).replace(/\n|\r/g, '')}`);
-  console.log('Available endpoints:');
-  console.log('  GET  /                 - Web interface');
-  console.log('  GET  /api/status       - Get git status');
-  console.log('  GET  /api/log          - Get recent commits');
-  console.log('  GET  /api/check-git    - Check if git repo');
-  console.log('  POST /api/init         - Initialize git repo');
-  console.log('  POST /api/add          - Add all changes');
-  console.log('  POST /api/commit       - Create commit');
-}); 
+// Start server when run directly (not when imported by tests)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Git commit server running on http://localhost:${String(PORT).replace(/\n|\r/g, '')}`);
+    console.log('Available endpoints:');
+    console.log('  GET  /                 - Web interface');
+    console.log('  GET  /api/status       - Get git status');
+    console.log('  GET  /api/log          - Get recent commits');
+    console.log('  GET  /api/check-git    - Check if git repo');
+    console.log('  POST /api/init         - Initialize git repo');
+    console.log('  POST /api/add          - Add all changes');
+    console.log('  POST /api/commit       - Create commit');
+  });
+}
+
+module.exports = app;
