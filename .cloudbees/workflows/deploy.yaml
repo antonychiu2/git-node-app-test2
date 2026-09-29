@@ -11,6 +11,11 @@ on:
 jobs:
   test:
     uses: .cloudbees/workflows/ci.yaml
+    # Without this, secrets.SMART_TESTS_TOKEN is undefined inside ci.yaml when
+    # it's invoked through this workflow_call (it's only implicitly available
+    # when ci.yaml runs directly on a pull_request), which fails the whole
+    # workflow at evaluation time before any job starts.
+    secrets: inherit
 
   build-and-push:
     needs: test

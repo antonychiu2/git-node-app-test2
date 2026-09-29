@@ -71,4 +71,4 @@ jobs:
           SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
         run: |
           cd "$CLOUDBEES_WORKSPACE"
-          sh scripts/smart-tests.sh record test-results/smart-tests-demo.xml
+          sh scripts/smart-tests.sh record test-results/smart-tests-demo.xml $(cat .smart-tests/subset.txt)

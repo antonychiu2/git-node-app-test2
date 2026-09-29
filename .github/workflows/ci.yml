@@ -60,7 +60,7 @@ jobs:
         if: always()
         env:
           SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
-        run: sh scripts/smart-tests.sh record test-results/junit.xml
+        run: sh scripts/smart-tests.sh record test-results/junit.xml test/server.test.js
 
   version-check:
     name: Version bump check

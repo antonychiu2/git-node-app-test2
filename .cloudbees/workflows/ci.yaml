@@ -58,7 +58,7 @@ jobs:
           SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
         run: |
           cd "$CLOUDBEES_WORKSPACE"
-          sh scripts/smart-tests.sh record test-results/junit.xml
+          sh scripts/smart-tests.sh record test-results/junit.xml test/server.test.js
 
       - name: Fail if tests failed
         uses: docker://node:22
@@ -123,7 +123,7 @@ jobs:
           SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
         run: |
           cd "$CLOUDBEES_WORKSPACE"
-          sh scripts/smart-tests.sh record test-results/junit.xml
+          sh scripts/smart-tests.sh record test-results/junit.xml test/server.test.js
 
       - name: Fail if tests failed
         uses: docker://node:24
