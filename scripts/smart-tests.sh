@@ -254,6 +254,10 @@ case "$cmd" in
     # order, and each file has exactly one top-level describe() -- so a
     # sorted positional match is correct here, though it's specific to this
     # repo's convention, not a general solution.
+    #
+    # The suite is also renamed to its file path: the CLI then records
+    # file=<path>#testcase=<name> instead of file=<path>#testsuite=<describe>#testcase=<name>,
+    # the shape Smart Tests expects when it subsets by file.
     python3 - "$junit" "$STATE/junit.xml" "$@" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
@@ -267,6 +271,7 @@ if len(suites) != len(files):
           "given; file attribution may be wrong", file=sys.stderr)
 for suite, path in zip(suites, files):
     suite.set("file", path)
+    suite.set("name", path)
 tree.write(junit_out, encoding="utf-8", xml_declaration=True)
 PY
     smart-tests record tests file --session "@$SESSION" "$STATE/junit.xml" || warn "record tests failed"
