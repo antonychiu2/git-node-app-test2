@@ -26,6 +26,10 @@
 #                              (<src dir>/<name>.* -> <name>.* test file), via
 #                              Smart Tests' --prioritized-tests-mapping plus a
 #                              local union in case the service doesn't apply it.
+#   SMART_TESTS_USE_CASE       one-commit | feature-branch | recurring: which
+#                              changes Smart Tests compares the tests against
+#                              (subset --use-case, a hidden CLI option). Unset
+#                              leaves it to the service.
 #   SMART_TESTS_SRC_DIR        modules to map to tests (default smart-tests-demo/src).
 #   SMART_TESTS_BASE_BRANCH    changes are listed against the merge-base with
 #                              origin/<this> (default main); on that branch
@@ -166,6 +170,12 @@ case "$cmd" in
       target|time|confidence) ;;
       *) warn "unknown SMART_TESTS_OPTIMIZATION '$optimization'; using target"; optimization=target ;;
     esac
+    use_case=""
+    case "${SMART_TESTS_USE_CASE:-}" in
+      "") ;;
+      one-commit|feature-branch|recurring) use_case="--use-case $SMART_TESTS_USE_CASE" ;;
+      *) warn "unknown SMART_TESTS_USE_CASE '$SMART_TESTS_USE_CASE'; leaving it to the service" ;;
+    esac
     printf '%s\n' "$@" > "$STATE/candidates.txt"
     cp "$STATE/candidates.txt" "$STATE/subset.txt"
     rm -f "$STATE/would-have-run.txt" "$STATE/selected.txt" "$STATE/subset.new" "$STATE/subset.err"
@@ -189,8 +199,9 @@ case "$cmd" in
       fi
 
       status=0
+      [ -n "$use_case" ] && echo "Change under test: ${use_case#--use-case }"
       # shellcheck disable=SC2086
-      smart-tests subset file --session "@$SESSION" "--$optimization" "$value" $mapping \
+      smart-tests subset file --session "@$SESSION" "--$optimization" "$value" $mapping $use_case \
         < "$STATE/candidates.txt" > "$STATE/subset.new" 2> "$STATE/subset.err" || status=$?
       cat "$STATE/subset.err" >&2
       subset_id=$(sed -n 's/.*created subset \([0-9][0-9]*\).*/\1/p' "$STATE/subset.err" | head -n 1)
