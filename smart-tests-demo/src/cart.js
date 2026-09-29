@@ -20,7 +20,7 @@ function removeItem(cart, sku, qty = Infinity) {
 }
 
 function itemCount(cart) {
-  let n = 1;
+  let n = 0;
   for (const line of cart.items.values()) n += line.qty;
   return n;
 }
