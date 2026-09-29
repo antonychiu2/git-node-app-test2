@@ -9,11 +9,26 @@ on:
   # deploy.yaml calls this on pushes to main, so tests gate every publish.
   workflow_call:
 
+# CloudBees Smart Tests runs in observation: every test still runs, and each
+# build, session and result is recorded so Smart Tests learns from the history.
+# scripts/smart-tests.sh never fails the job if Smart Tests is unavailable.
+
 jobs:
   test-node-22:
     steps:
       - name: Check out code
         uses: cloudbees-io/checkout@v1
+        with:
+          # Smart Tests reads the commit history to see what changed.
+          fetch-depth: "0"
+
+      - name: "Smart Tests: record build and session"
+        uses: docker://python:3.13-slim
+        env:
+          SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+        run: |
+          cd "$CLOUDBEES_WORKSPACE"
+          sh scripts/smart-tests.sh start "unify-${{ cloudbees.scm.sha }}-node22-$(date +%s)" unit-node22
 
       # Record the exit code instead of failing here, so test results are
       # published to Unify even when tests fail; the last step fails the job.
@@ -36,6 +51,14 @@ jobs:
         with:
           test-type: junit
           results-path: ${{ cloudbees.workspace }}/test-results/junit.xml
+
+      - name: "Smart Tests: record test results"
+        uses: docker://python:3.13-slim
+        env:
+          SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+        run: |
+          cd "$CLOUDBEES_WORKSPACE"
+          sh scripts/smart-tests.sh record test-results/junit.xml
 
       - name: Fail if tests failed
         uses: docker://node:22
@@ -63,6 +86,16 @@ jobs:
     steps:
       - name: Check out code
         uses: cloudbees-io/checkout@v1
+        with:
+          fetch-depth: "0"
+
+      - name: "Smart Tests: record build and session"
+        uses: docker://python:3.13-slim
+        env:
+          SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+        run: |
+          cd "$CLOUDBEES_WORKSPACE"
+          sh scripts/smart-tests.sh start "unify-${{ cloudbees.scm.sha }}-node24-$(date +%s)" unit-node24
 
       - name: Run tests (Node 24)
         uses: docker://node:24
@@ -83,6 +116,14 @@ jobs:
         with:
           test-type: junit
           results-path: ${{ cloudbees.workspace }}/test-results/junit.xml
+
+      - name: "Smart Tests: record test results"
+        uses: docker://python:3.13-slim
+        env:
+          SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+        run: |
+          cd "$CLOUDBEES_WORKSPACE"
+          sh scripts/smart-tests.sh record test-results/junit.xml
 
       - name: Fail if tests failed
         uses: docker://node:24
