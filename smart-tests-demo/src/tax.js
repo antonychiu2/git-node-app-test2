@@ -1,5 +1,6 @@
 const { roundCents } = require('./currency');
 
+// Sales tax rates by region, as a fraction of the pre-tax amount.
 const RATES = { 'US-CA': 0.0725, 'US-NY': 0.04, 'US-OR': 0, 'CA-AB': 0.05, 'CA-ON': 0.13 };
 
 function taxRate(region) {
