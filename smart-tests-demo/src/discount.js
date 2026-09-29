@@ -1,6 +1,6 @@
 const { roundCents } = require('./currency');
 
-const COUPONS = { SAVE10: 0.1, WELCOME15: 0.15, VIP25: 0.25 };
+const COUPONS = { SAVE10: 0.12, WELCOME15: 0.15, VIP25: 0.25 };
 
 function percentOff(amount, pct) {
   if (pct < 0 || pct > 100) throw new RangeError('pct must be 0-100');
