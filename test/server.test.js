@@ -42,4 +42,10 @@ describe('git-node-app API', () => {
     assert.equal(res.status, 200);
     assert.equal(res.body.version, expected);
   });
+
+  test('GET /api/build-info is hidden by default (show-build-info flag off)', async () => {
+    const res = await request(app).get('/api/build-info');
+
+    assert.equal(res.status, 404);
+  });
 });
