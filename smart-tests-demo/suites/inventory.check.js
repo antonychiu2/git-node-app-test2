@@ -4,8 +4,8 @@ const { work } = require('./_support');
 const { createInventory, available, reserve, release } = require('../src/inventory');
 
 // Deliberately flaky test so Smart Tests has an unreliable test to flag.
-// Fails about 15% of runs by default; set SMART_TESTS_DEMO_FLAKY_RATE=0 to disable.
-const FLAKY_RATE = Number(process.env.SMART_TESTS_DEMO_FLAKY_RATE ?? 0.15);
+// Fails about 70% of runs by default; set SMART_TESTS_DEMO_FLAKY_RATE=0 to disable.
+const FLAKY_RATE = Number(process.env.SMART_TESTS_DEMO_FLAKY_RATE ?? 0.7);
 
 describe('inventory', () => {
   test('reports available stock', async () => {
