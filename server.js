@@ -3,6 +3,9 @@ const { exec } = require('child_process');
 const path = require('path');
 const child_process = require('node:child_process');
 const fs = require('fs').promises;
+const { readFileSync } = require('fs');
+const os = require('os');
+const Rox = require('rox-node');
 
 // Security scan trigger - Git commit application with web interface
 const app = express();
@@ -13,11 +16,66 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
+// VERSION is the single source of truth for the app version; read once at
+// startup so /api/version doesn't hit the filesystem on every request.
+const APP_VERSION = readFileSync(path.join(__dirname, 'VERSION'), 'utf8').trim();
+
+// Feature flags (CloudBees Unify / rox-node). The flag stays at its local
+// default (false) until initFeatureFlags() resolves, so evaluation is always
+// safe to call even before setup finishes or when no SDK key is configured
+// (e.g. local dev, tests).
+//
+// The container key must exactly match the flag name configured in CB
+// Unify ("show-build-info") -- rox-node auto-creates a *new* flag under
+// whatever key you register, it doesn't fuzzy-match, so a mismatch here
+// silently evaluates a different (always-default) flag.
+const flags = {
+  'show-build-info': new Rox.Flag(false),
+};
+Rox.register('', flags);
+
+// Skipped when ROX_SDK_KEY is unset so local runs and tests never depend on
+// network access; the flag simply stays at its default in that case.
+async function initFeatureFlags() {
+  if (!process.env.ROX_SDK_KEY) {
+    console.warn('ROX_SDK_KEY not set; feature flags will use their default values');
+    return;
+  }
+  try {
+    await Rox.setup(process.env.ROX_SDK_KEY);
+  } catch (error) {
+    console.warn('Failed to initialize feature flags:', error.message);
+  }
+}
+
 // Routes
 
 // Serve the main page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Get the deployed app version
+app.get('/api/version', (req, res) => {
+  res.json({ version: APP_VERSION });
+});
+
+// Build/runtime info panel, gated by the show-build-info flag (GS-7).
+// Returns 404 when off so the frontend can treat "not found" as "hidden"
+// without needing to know about the flag itself.
+app.get('/api/build-info', (req, res) => {
+  if (!flags['show-build-info'].isEnabled()) {
+    return res.status(404).json({ success: false, error: 'Not found' });
+  }
+
+  res.json({
+    success: true,
+    namespace: process.env.POD_NAMESPACE || 'local',
+    hostname: os.hostname(),
+    nodeVersion: process.version,
+    uptimeSeconds: Math.floor(process.uptime()),
+    version: APP_VERSION,
+  });
 });
 
 // Get git status
@@ -189,16 +247,19 @@ app.use((err, req, res, next) => {
 
 // Start server when run directly (not when imported by tests)
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Git commit server running on http://localhost:${String(PORT).replace(/\n|\r/g, '')}`);
-    console.log('Available endpoints:');
-    console.log('  GET  /                 - Web interface');
-    console.log('  GET  /api/status       - Get git status');
-    console.log('  GET  /api/log          - Get recent commits');
-    console.log('  GET  /api/check-git    - Check if git repo');
-    console.log('  POST /api/init         - Initialize git repo');
-    console.log('  POST /api/add          - Add all changes');
-    console.log('  POST /api/commit       - Create commit');
+  initFeatureFlags().finally(() => {
+    app.listen(PORT, () => {
+      console.log(`Git commit server running on http://localhost:${String(PORT).replace(/\n|\r/g, '')}`);
+      console.log('Available endpoints:');
+      console.log('  GET  /                 - Web interface');
+      console.log('  GET  /api/status       - Get git status');
+      console.log('  GET  /api/log          - Get recent commits');
+      console.log('  GET  /api/check-git    - Check if git repo');
+      console.log('  POST /api/init         - Initialize git repo');
+      console.log('  POST /api/add          - Add all changes');
+      console.log('  POST /api/commit       - Create commit');
+      console.log('  GET  /api/build-info   - Build/runtime info (flag-gated)');
+    });
   });
 }
 

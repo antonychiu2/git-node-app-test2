@@ -182,6 +182,40 @@
             opacity: 0.6;
             pointer-events: none;
         }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+        }
+
+        .build-info {
+            max-width: 800px;
+            margin: 0 auto 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 8px;
+            padding: 12px 20px;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+
+        .build-info dl {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 4px 12px;
+            margin: 0;
+        }
+
+        .build-info dt {
+            opacity: 0.75;
+        }
+
+        .build-info dd {
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -221,6 +255,10 @@
             </div>
         </div>
     </div>
+
+    <div class="build-info" id="buildInfoPanel" hidden></div>
+
+    <footer class="footer" id="versionFooter"></footer>
 
     <script>
         // Utility functions
@@ -383,9 +421,46 @@
             }
         }
 
+        async function loadVersion() {
+            try {
+                const response = await fetch('/api/version');
+                const data = await response.json();
+                document.getElementById('versionFooter').textContent = `v${data.version}`;
+            } catch (error) {
+                // Non-critical: leave the footer blank if the version can't be loaded.
+            }
+        }
+
+        async function loadBuildInfo() {
+            const panel = document.getElementById('buildInfoPanel');
+            try {
+                const response = await fetch('/api/build-info');
+                if (!response.ok) {
+                    panel.hidden = true;
+                    return;
+                }
+                const data = await response.json();
+                panel.innerHTML = `
+                    <dl>
+                        <dt>namespace</dt><dd>${data.namespace}</dd>
+                        <dt>hostname</dt><dd>${data.hostname}</dd>
+                        <dt>node</dt><dd>${data.nodeVersion}</dd>
+                        <dt>uptime</dt><dd>${data.uptimeSeconds}s</dd>
+                        <dt>version</dt><dd>v${data.version}</dd>
+                    </dl>
+                `;
+                panel.hidden = false;
+            } catch (error) {
+                // Flag off, endpoint unreachable, etc. -- panel just stays hidden.
+                panel.hidden = true;
+            }
+        }
+
         // Load initial status on page load
         window.addEventListener('load', () => {
             checkIfGitRepo();
+            loadVersion();
+            loadBuildInfo();
         });
     </script>
 </body>
