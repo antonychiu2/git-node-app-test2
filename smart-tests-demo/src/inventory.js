@@ -17,4 +17,8 @@ function release(inv, sku, qty) {
   inv.reserved[sku] = Math.max(0, (inv.reserved[sku] || 0) - qty);
 }
 
-module.exports = { createInventory, available, reserve, release };
+function totalReserved(inv) {
+  return Object.values(inv.reserved).reduce((sum, qty) => sum + qty, 0);
+}
+
+module.exports = { createInventory, available, reserve, release, totalReserved };
