@@ -1,3 +1,4 @@
+// Zones: base fee plus a per-kg rate, weight rounded up to whole kilograms.
 const ZONES = { local: { base: 5, perKg: 0.5, days: 1 }, domestic: { base: 8, perKg: 1, days: 3 }, international: { base: 20, perKg: 4, days: 10 } };
 
 function zone(name) {

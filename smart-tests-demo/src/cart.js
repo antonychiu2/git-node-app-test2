@@ -1,3 +1,5 @@
+// Quantities are whole units; removing more than a line holds deletes the line.
+// Cart lines are keyed by SKU; quantities for the same SKU are merged.
 // Shopping cart: line items keyed by SKU.
 function createCart() {
   return { items: new Map() };

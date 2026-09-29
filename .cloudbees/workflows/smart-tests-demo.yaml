@@ -21,6 +21,8 @@ name: Smart Tests demo
 # confidence (e.g. 90%, so the count varies with how risky the change looks).
 # SMART_TESTS_PRIORITIZE_CHANGED: "true" always selects the suite for each
 # changed src/<module>.js, on top of the model's choice (logged per file).
+# SMART_TESTS_USE_CASE: sets the "change under test" Smart Tests compares the
+# tests against (see scripts/smart-tests.sh).
 # Test failures don't fail this job: it's a demo.
 
 on:
@@ -37,6 +39,9 @@ env:
   SMART_TESTS_OPTIMIZATION: target
   SMART_TESTS_TARGET: 40%
   SMART_TESTS_PRIORITIZE_CHANGED: "false"
+  # Which changes Smart Tests compares the tests against: one-commit,
+  # feature-branch or recurring (empty = the service decides).
+  SMART_TESTS_USE_CASE: one-commit
   # The flaky inventory test fails ~70% of runs by default, which makes it top
   # every ranking. It's off while the model learns change -> failure links;
   # remove this line (or set e.g. "0.7") to demo flaky-test detection again.

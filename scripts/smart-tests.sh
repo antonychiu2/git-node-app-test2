@@ -26,6 +26,10 @@
 #                              (<src dir>/<name>.* -> <name>.* test file), via
 #                              Smart Tests' --prioritized-tests-mapping plus a
 #                              local union in case the service doesn't apply it.
+#   SMART_TESTS_USE_CASE       one-commit | feature-branch | recurring: which
+#                              changes Smart Tests compares the tests against
+#                              (subset --use-case, a hidden CLI option). Unset
+#                              leaves it to the service.
 #   SMART_TESTS_SRC_DIR        modules to map to tests (default smart-tests-demo/src).
 #   SMART_TESTS_BASE_BRANCH    changes are listed against the merge-base with
 #                              origin/<this> (default main); on that branch
@@ -166,6 +170,12 @@ case "$cmd" in
       target|time|confidence) ;;
       *) warn "unknown SMART_TESTS_OPTIMIZATION '$optimization'; using target"; optimization=target ;;
     esac
+    use_case=""
+    case "${SMART_TESTS_USE_CASE:-}" in
+      "") ;;
+      one-commit|feature-branch|recurring) use_case="--use-case $SMART_TESTS_USE_CASE" ;;
+      *) warn "unknown SMART_TESTS_USE_CASE '$SMART_TESTS_USE_CASE'; leaving it to the service" ;;
+    esac
     printf '%s\n' "$@" > "$STATE/candidates.txt"
     cp "$STATE/candidates.txt" "$STATE/subset.txt"
     rm -f "$STATE/would-have-run.txt" "$STATE/selected.txt" "$STATE/subset.new" "$STATE/subset.err"
@@ -189,8 +199,9 @@ case "$cmd" in
       fi
 
       status=0
+      [ -n "$use_case" ] && echo "Change under test: ${use_case#--use-case }"
       # shellcheck disable=SC2086
-      smart-tests subset file --session "@$SESSION" "--$optimization" "$value" $mapping \
+      smart-tests subset file --session "@$SESSION" "--$optimization" "$value" $mapping $use_case \
         < "$STATE/candidates.txt" > "$STATE/subset.new" 2> "$STATE/subset.err" || status=$?
       cat "$STATE/subset.err" >&2
       subset_id=$(sed -n 's/.*created subset \([0-9][0-9]*\).*/\1/p' "$STATE/subset.err" | head -n 1)
@@ -254,6 +265,10 @@ case "$cmd" in
     # order, and each file has exactly one top-level describe() -- so a
     # sorted positional match is correct here, though it's specific to this
     # repo's convention, not a general solution.
+    #
+    # The suite is also renamed to its file path: the CLI then records
+    # file=<path>#testcase=<name> instead of file=<path>#testsuite=<describe>#testcase=<name>,
+    # the shape Smart Tests expects when it subsets by file.
     python3 - "$junit" "$STATE/junit.xml" "$@" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
@@ -267,6 +282,7 @@ if len(suites) != len(files):
           "given; file attribution may be wrong", file=sys.stderr)
 for suite, path in zip(suites, files):
     suite.set("file", path)
+    suite.set("name", path)
 tree.write(junit_out, encoding="utf-8", xml_declaration=True)
 PY
     smart-tests record tests file --session "@$SESSION" "$STATE/junit.xml" || warn "record tests failed"
