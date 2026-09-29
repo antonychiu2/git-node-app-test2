@@ -1,3 +1,4 @@
+// roundCents adds EPSILON so values like 1.005 round up correctly.
 // Money helpers. Amounts are numbers in major units (e.g. dollars).
 function roundCents(amount) {
   return Math.round((amount + Number.EPSILON) * 100) / 100;
