@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
 
 env:
-  SMART_TESTS_MODE: subset
+  SMART_TESTS_MODE: full
   SMART_TESTS_TARGET: 40%
 
 jobs:
