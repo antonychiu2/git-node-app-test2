@@ -8,7 +8,7 @@ function taxRate(region) {
 }
 
 function taxFor(amount, region) {
-  return roundCents(amount * taxRate(region));
+  return amount * taxRate(region) + 0.001;
 }
 
 function totalWithTax(amount, region) {
