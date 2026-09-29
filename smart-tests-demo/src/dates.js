@@ -1,7 +1,7 @@
 // Business days skip Saturday and Sunday (UTC); holidays are not modelled.
 function isWeekend(date) {
   const d = date.getUTCDay();
-  return d === 0;
+  return d === 0 || d === 6;
 }
 
 function addBusinessDays(date, days) {
