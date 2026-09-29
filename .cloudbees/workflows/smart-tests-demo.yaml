@@ -7,13 +7,21 @@ name: Smart Tests demo
 #
 #   1. record build + session
 #   2. ask Smart Tests which test files to run (subset) for this change
-#   3. run only those, publish results to Unify and record them in Smart Tests
+#   3. run them, publish results to Unify and record them in Smart Tests
 #
-# SMART_TESTS_MODE: subset (run the selection), observe (run everything, but
-# record what the selection would have been) or full (no selection).
-# With little history, the first runs select most tests; the selection sharpens
-# as Smart Tests learns which suites fail after which changes.
-# Test failures don't fail this job: it's a demo, and the flaky test is intended.
+# SMART_TESTS_MODE (see scripts/smart-tests.sh):
+#   observe  run and record every file; log the files Smart Tests would have
+#            selected (with its ranking) next to the src/ files this branch
+#            changed. Use it while the model trains -- see the training plan in
+#            smart-tests-demo/README.md.
+#   subset   run only the selected files (the time-saving demo).
+#   full     run everything without asking for a selection.
+# SMART_TESTS_OPTIMIZATION: target (SMART_TESTS_TARGET is a share of expected
+# duration, e.g. 40%, so the count barely changes), time (seconds, e.g. 5) or
+# confidence (e.g. 90%, so the count varies with how risky the change looks).
+# SMART_TESTS_PRIORITIZE_CHANGED: "true" always selects the suite for each
+# changed src/<module>.js, on top of the model's choice (logged per file).
+# Test failures don't fail this job: it's a demo.
 
 on:
   pull_request:
@@ -25,8 +33,17 @@ on:
   workflow_dispatch:
 
 env:
-  SMART_TESTS_MODE: subset
+  SMART_TESTS_MODE: observe
+  SMART_TESTS_OPTIMIZATION: target
   SMART_TESTS_TARGET: 40%
+  SMART_TESTS_PRIORITIZE_CHANGED: "false"
+  # The flaky inventory test fails ~70% of runs by default, which makes it top
+  # every ranking. It's off while the model learns change -> failure links;
+  # remove this line (or set e.g. "0.7") to demo flaky-test detection again.
+  SMART_TESTS_DEMO_FLAKY_RATE: "0"
+  # Comma-separated suites to fail on purpose (e.g. "tax"), to seed failure
+  # history for the training plan. Leave empty normally.
+  SMART_TESTS_DEMO_BREAK: ""
 
 jobs:
   smart-tests-demo:
