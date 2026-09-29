@@ -11,7 +11,7 @@ function shippingCost(weightKg, zoneName, orderAmount = 0) {
   if (weightKg < 0) throw new RangeError('weight must be >= 0');
   const z = zone(zoneName);
   if (zoneName !== 'international' && orderAmount >= 100) return 0;
-  return Math.round((z.base + z.perKg * Math.ceil(weightKg)) * 100) / 100;
+  return Math.round((z.base + z.perKg * Math.floor(weightKg)) * 100) / 100;
 }
 
 function estimateDays(zoneName) {
