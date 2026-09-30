@@ -41,7 +41,6 @@ Visit `http://localhost:3000` to access the web interface where you can:
 - View git status and recent commits
 - Add changes to staging area
 - Create commits with custom messages
-- Add and commit in one operation
 
 ### REST API Endpoints
 
@@ -82,7 +81,7 @@ Get the current git status.
 ```
 
 #### POST `/api/add`
-Add all changes to the staging area.
+Append a timestamped line to `test.txt` (so there is always something to stage), then stage all changes.
 
 **Response:**
 ```json
@@ -113,26 +112,6 @@ Create a commit with a user-provided message.
 }
 ```
 
-#### POST `/api/add-commit`
-Add all changes and create a commit in one operation.
-
-**Request Body:**
-```json
-{
-  "message": "Your commit message here"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Changes added and committed successfully",
-  "output": "[main abc1234] Your commit message here\n 2 files changed, 10 insertions(+)",
-  "commitMessage": "Your commit message here"
-}
-```
-
 #### GET `/api/log`
 Get the 10 most recent commits.
 
@@ -147,6 +126,19 @@ Get the 10 most recent commits.
   ]
 }
 ```
+
+#### GET `/api/version`
+Get the app version from the `VERSION` file.
+
+**Response:**
+```json
+{
+  "version": "1.7"
+}
+```
+
+#### GET `/api/build-info`
+Get build and runtime info (namespace, hostname, Node.js version, uptime, version). Returns `404` unless the `show-build-info` feature flag is on.
 
 ## Example Usage with curl
 
@@ -167,11 +159,6 @@ curl -X POST http://localhost:3000/api/add
 curl -X POST http://localhost:3000/api/commit \
   -H "Content-Type: application/json" \
   -d '{"message": "Add new feature"}'
-
-# Add and commit in one operation
-curl -X POST http://localhost:3000/api/add-commit \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Fix bug and update documentation"}'
 
 # Get recent commits
 curl http://localhost:3000/api/log
@@ -197,13 +184,13 @@ Error responses include details about what went wrong:
 ## Security Considerations
 
 - The server executes git commands in the current working directory
-- Commit messages are escaped to prevent command injection
+- Commit messages are passed to git as a single argument (`execFile`), never through a shell, to prevent command injection
 - The server should only be run in trusted environments
 - Consider adding authentication for production use
 
 ## Requirements
 
-- Node.js (v14 or higher)
+- Node.js 22 or higher (CI tests on Node 22 and 24)
 - Git installed and available in PATH
 - A git repository (or ability to initialize one)
 
@@ -215,7 +202,11 @@ The project includes:
 - `package.json`: Dependencies and scripts
 - `README.md`: This documentation
 
-For development, use `npm run dev` to start the server with automatic restart on file changes.
+For development, use `npm run dev` to start the server with automatic restart on file changes. Run the tests with `npm test`.
+
+Environment variables:
+- `PORT`: port to listen on (default `3000`)
+- `ROX_SDK_KEY`: CloudBees feature flag SDK key; when unset, flags keep their default values
 
 ## License
 
