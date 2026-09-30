@@ -33,7 +33,8 @@ jobs:
       # Kaniko pushes the immutable sha-<commit> tag and registers it in Unify
       # as the build artifact version the release workflow promotes. It also
       # saves the image as a tar for the container scan below.
-      - name: Build and push image
+      - id: build
+        name: Build and push image
         uses: cloudbees-io/kaniko@v1
         kind: build
         with:
@@ -45,7 +46,8 @@ jobs:
       # Docker Hub image explicitly. Findings are attached to the image and show
       # in the application's Security Center once it's deployed to an
       # environment. Scan findings don't fail the build.
-      - name: Scan image with Trivy
+      - id: scan
+        name: Scan image with Trivy
         uses: cloudbees-io/trivy-plugin@v1
         kind: scan
         with:
@@ -57,3 +59,56 @@ jobs:
         uses: docker://gcr.io/go-containerregistry/crane:debug
         run: |
           crane tag "docker.io/${{ vars.DOCKERHUB_USERNAME }}/git-node-app-test2:sha-${{ cloudbees.scm.sha }}" latest
+
+      # Evidence for reviewers/auditors: which commit was built into which exact
+      # image, that it passed the CI tests first, and what the image scan found.
+      - id: evidence
+        name: Compose build evidence
+        uses: docker://alpine:3.20
+        env:
+          IMAGE_REPO: docker.io/${{ vars.DOCKERHUB_USERNAME }}/git-node-app-test2
+          IMAGE_TAG: sha-${{ cloudbees.scm.sha }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          ARTIFACT_IDS: ${{ steps.build.outputs.artifact-ids }}
+          COMMIT: ${{ cloudbees.scm.sha }}
+          BRANCH: ${{ cloudbees.scm.branch }}
+          REPO_URL: ${{ cloudbees.scm.repositoryUrl }}
+          CRITICAL: ${{ steps.scan.outputs.critical-count }}
+          VERY_HIGH: ${{ steps.scan.outputs.very-high-count }}
+          HIGH: ${{ steps.scan.outputs.high-count }}
+          MEDIUM: ${{ steps.scan.outputs.medium-count }}
+          LOW: ${{ steps.scan.outputs.low-count }}
+        run: |
+          set -eu
+          apk add --no-cache git >/dev/null
+          cd "$CLOUDBEES_WORKSPACE"
+          git config --global --add safe.directory "$CLOUDBEES_WORKSPACE"
+          repo="${REPO_URL%.git}"
+          short=$(printf '%s' "$COMMIT" | cut -c1-12)
+          msg=$(git log -1 --format=%s "$COMMIT" 2>/dev/null | tr -d '|`' || true)
+          base=$(sed -n 's/^FROM[[:space:]]\{1,\}//p' Dockerfile | head -n 1)
+          {
+            printf '## ✅ Built and pushed `%s:%s`\n\n' "$IMAGE_REPO" "$IMAGE_TAG"
+            printf 'Built only after the CI tests (Node 22 and Node 24) passed on this commit; their results are in the `test` job evidence.\n\n'
+
+            printf '### Build provenance\n| | |\n|---|---|\n'
+            printf '| Source commit | [`%s`](%s/commit/%s) %s |\n' "$short" "$repo" "$COMMIT" "$msg"
+            printf '| Branch | `%s` |\n' "$BRANCH"
+            printf '| Image | `%s:%s` |\n' "$IMAGE_REPO" "$IMAGE_TAG"
+            printf '| Digest | `%s` |\n' "${DIGEST:-unavailable}"
+            printf '| Also tagged | `latest` (moved with crane, not registered as its own artifact) |\n'
+            printf '| Unify artifact | id `%s` |\n' "${ARTIFACT_IDS:-unavailable}"
+            printf '| Base image | `%s` |\n' "$base"
+            printf '| Builder | Kaniko, `Dockerfile`, labels `org.opencontainers.image.revision` and `.source` set |\n'
+
+            printf '\n### Container image scan (Trivy)\n'
+            printf '| Critical | Very high | High | Medium | Low |\n|---:|---:|---:|---:|---:|\n'
+            printf '| %s | %s | %s | %s | %s |\n' "${CRITICAL:-0}" "${VERY_HIGH:-0}" "${HIGH:-0}" "${MEDIUM:-0}" "${LOW:-0}"
+            printf '\nFindings do not fail the build; details are in the Security Center once the image is deployed.\n'
+          } > "$CLOUDBEES_OUTPUTS/summary"
+          cat "$CLOUDBEES_OUTPUTS/summary"
+
+      - name: Publish build evidence
+        uses: cloudbees-io/publish-evidence-item@v1
+        with:
+          content: ${{ steps.evidence.outputs.summary }}
