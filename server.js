@@ -153,8 +153,39 @@ app.post('/api/add', async (req, res) => {
   }
 });
 
-// Create a commit with user-provided message 
+// Create a commit with user-provided message (GS-2). The message is passed to
+// git as an argument via execFile, never interpolated into a shell command.
+app.post('/api/commit', (req, res) => {
+  const { message } = req.body || {};
 
+  if (typeof message !== 'string' || message.trim() === '') {
+    return res.status(400).json({
+      success: false,
+      error: 'Commit message is required',
+      details: 'Provide a non-empty "message" string in the request body'
+    });
+  }
+
+  child_process.execFile('git', ['commit', '-m', message], (error, stdout, stderr) => {
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create commit',
+        details: stderr || stdout || error.message
+      });
+    }
+
+    child_process.execFile('git', ['rev-parse', 'HEAD'], (hashError, hashStdout) => {
+      res.json({
+        success: true,
+        message: 'Commit created successfully',
+        output: stdout,
+        commitMessage: message,
+        commitHash: hashError ? null : hashStdout.trim()
+      });
+    });
+  });
+});
 
 // Get recent commits 
 app.get('/api/log', async (req, res) => {
