@@ -9,6 +9,10 @@ on:
   # deploy.yaml calls this on pushes to main, so tests gate every publish.
   workflow_call:
 
+# Each job publishes an evidence item (Evidence tab of the run) describing what
+# it checked and the result, including when the check fails; the job's last
+# step then fails it.
+#
 # CloudBees Smart Tests runs in observation: every test still runs, and each
 # build, session and result is recorded so Smart Tests learns from the history.
 # scripts/smart-tests.sh never fails the job if Smart Tests is unavailable.
@@ -60,6 +64,24 @@ jobs:
           cd "$CLOUDBEES_WORKSPACE"
           sh scripts/smart-tests.sh record test-results/junit.xml test/server.test.js
 
+      - id: evidence
+        name: Compose test evidence
+        uses: docker://node:22
+        env:
+          COMMIT: ${{ cloudbees.scm.sha }}
+          BRANCH: ${{ cloudbees.scm.branch }}
+          REPO_URL: ${{ cloudbees.scm.repositoryUrl }}
+        run: |
+          cd "$CLOUDBEES_WORKSPACE"
+          node scripts/test-evidence.js test-results/junit.xml test-results/exit-code "Unit tests (Node 22)" \
+            > "$CLOUDBEES_OUTPUTS/summary"
+          cat "$CLOUDBEES_OUTPUTS/summary"
+
+      - name: Publish test evidence
+        uses: cloudbees-io/publish-evidence-item@v1
+        with:
+          content: ${{ steps.evidence.outputs.summary }}
+
       - name: Fail if tests failed
         uses: docker://node:22
         run: exit "$(cat "$CLOUDBEES_WORKSPACE/test-results/exit-code")"
@@ -75,12 +97,57 @@ jobs:
       - name: Check out code
         uses: cloudbees-io/checkout@v1
 
-      - name: Check VERSION was bumped by exactly 0.1
+      # Record the result instead of failing here, so the evidence below is
+      # published either way; the last step fails the job.
+      - id: version
+        name: Check VERSION was bumped by exactly 0.1
         uses: docker://node:22
         run: |
           cd "$CLOUDBEES_WORKSPACE"
           git config --global --add safe.directory "$CLOUDBEES_WORKSPACE"
-          node scripts/check-version-bump.js main
+          set +e
+          node scripts/check-version-bump.js main > version-check.log 2>&1
+          code=$?
+          cat version-check.log
+          printf '%s' "$code" > "$CLOUDBEES_OUTPUTS/exit-code"
+          tr -d '[:space:]' < VERSION > "$CLOUDBEES_OUTPUTS/head-version"
+          # check-version-bump.js fetched main, so FETCH_HEAD is the base.
+          { git show FETCH_HEAD:VERSION 2>/dev/null || true; } | tr -d '[:space:]' > "$CLOUDBEES_OUTPUTS/base-version"
+          grep -v '^From \|FETCH_HEAD' version-check.log | sed 's/^::error:://' | tail -n 1 > "$CLOUDBEES_OUTPUTS/message"
+
+      - id: evidence
+        name: Compose version check evidence
+        uses: docker://node:22
+        env:
+          CODE: ${{ steps.version.outputs.exit-code }}
+          HEAD_VERSION: ${{ steps.version.outputs.head-version }}
+          BASE_VERSION: ${{ steps.version.outputs.base-version }}
+          MESSAGE: ${{ steps.version.outputs.message }}
+          BRANCH: ${{ cloudbees.scm.branch }}
+          COMMIT: ${{ cloudbees.scm.sha }}
+        run: |
+          set -eu
+          if [ "$CODE" = 0 ]; then icon=✅; result=Passed; else icon=❌; result=Failed; fi
+          {
+            printf '## %s VERSION bump check: %s\n\n' "$icon" "$result"
+            printf 'Every PR must raise `VERSION` by exactly 0.1 over `main` (`scripts/check-version-bump.js`).\n\n'
+            printf '| | |\n|---|---|\n'
+            printf '| Result | **%s** (exit code `%s`) |\n' "$result" "$CODE"
+            printf '| `main` VERSION | `%s` |\n' "${BASE_VERSION:-none}"
+            printf '| `%s` VERSION | `%s` |\n' "$BRANCH" "$HEAD_VERSION"
+            printf '| Commit | `%s` |\n' "$(printf '%s' "$COMMIT" | cut -c1-12)"
+            printf '| Output | %s |\n' "$(printf '%s' "$MESSAGE" | tr '|' '/')"
+          } > "$CLOUDBEES_OUTPUTS/summary"
+          cat "$CLOUDBEES_OUTPUTS/summary"
+
+      - name: Publish version check evidence
+        uses: cloudbees-io/publish-evidence-item@v1
+        with:
+          content: ${{ steps.evidence.outputs.summary }}
+
+      - name: Fail if the version check failed
+        uses: docker://node:22
+        run: exit "${{ steps.version.outputs.exit-code }}"
 
   test-node-24:
     steps:
@@ -124,6 +191,24 @@ jobs:
         run: |
           cd "$CLOUDBEES_WORKSPACE"
           sh scripts/smart-tests.sh record test-results/junit.xml test/server.test.js
+
+      - id: evidence
+        name: Compose test evidence
+        uses: docker://node:24
+        env:
+          COMMIT: ${{ cloudbees.scm.sha }}
+          BRANCH: ${{ cloudbees.scm.branch }}
+          REPO_URL: ${{ cloudbees.scm.repositoryUrl }}
+        run: |
+          cd "$CLOUDBEES_WORKSPACE"
+          node scripts/test-evidence.js test-results/junit.xml test-results/exit-code "Unit tests (Node 24)" \
+            > "$CLOUDBEES_OUTPUTS/summary"
+          cat "$CLOUDBEES_OUTPUTS/summary"
+
+      - name: Publish test evidence
+        uses: cloudbees-io/publish-evidence-item@v1
+        with:
+          content: ${{ steps.evidence.outputs.summary }}
 
       - name: Fail if tests failed
         uses: docker://node:24
