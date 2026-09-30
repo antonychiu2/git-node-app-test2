@@ -73,7 +73,7 @@ jobs:
           REPO_URL: ${{ cloudbees.scm.repositoryUrl }}
         run: |
           cd "$CLOUDBEES_WORKSPACE"
-          node scripts/test-evidence.js test-results/junit.xml test-results/exit-code "Unit tests (Node 22)" \
+          node scripts/junit-evidence.js test-results/junit.xml test-results/exit-code "Unit tests (Node 22)" \
             > "$CLOUDBEES_OUTPUTS/summary"
           cat "$CLOUDBEES_OUTPUTS/summary"
 
@@ -201,7 +201,7 @@ jobs:
           REPO_URL: ${{ cloudbees.scm.repositoryUrl }}
         run: |
           cd "$CLOUDBEES_WORKSPACE"
-          node scripts/test-evidence.js test-results/junit.xml test-results/exit-code "Unit tests (Node 24)" \
+          node scripts/junit-evidence.js test-results/junit.xml test-results/exit-code "Unit tests (Node 24)" \
             > "$CLOUDBEES_OUTPUTS/summary"
           cat "$CLOUDBEES_OUTPUTS/summary"
 

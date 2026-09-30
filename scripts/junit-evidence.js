@@ -4,7 +4,7 @@
 // report written by `node --test --test-reporter=junit` and the exit code the
 // test step saved, so it also reports runs whose tests failed.
 //
-//   test-evidence.js <junit.xml> <exit-code-file> <label>
+//   junit-evidence.js <junit.xml> <exit-code-file> <label>
 //
 // Optional environment: COMMIT, BRANCH, REPO_URL (source commit link) and
 // SMART_TESTS_SESSION_FILE (defaults to .smart-tests/session.txt).
@@ -15,7 +15,7 @@ const fs = require('node:fs');
 
 const [junitPath, exitCodePath, label = 'Unit tests'] = process.argv.slice(2);
 if (!junitPath || !exitCodePath) {
-  console.error('Usage: test-evidence.js <junit.xml> <exit-code-file> <label>');
+  console.error('Usage: junit-evidence.js <junit.xml> <exit-code-file> <label>');
   process.exit(2);
 }
 
