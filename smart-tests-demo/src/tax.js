@@ -8,6 +8,7 @@ function taxRate(region) {
   return RATES[region];
 }
 
+// Rounds once, on the tax itself, so line totals never accumulate sub-cent drift.
 function taxFor(amount, region) {
   return roundCents(amount * taxRate(region));
 }
