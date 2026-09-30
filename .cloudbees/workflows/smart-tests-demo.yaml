@@ -35,7 +35,7 @@ on:
   workflow_dispatch:
 
 env:
-  SMART_TESTS_MODE: observe
+  SMART_TESTS_MODE: subset
   SMART_TESTS_OPTIMIZATION: target
   SMART_TESTS_TARGET: 40%
   SMART_TESTS_PRIORITIZE_CHANGED: "false"
